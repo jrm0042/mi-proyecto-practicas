@@ -4,11 +4,11 @@ name: CI/CD Pipeline Automático
 on:
   push:
     branches:
-      - master      # Se ejecuta cuando se hace push a master
+      - main      # Se ejecuta cuando se hace push a main
   pull_request:
     types: [closed]
     branches:
-      - master      # Se ejecuta cuando se cierra un PR apuntando a master
+      - main      # Se ejecuta cuando se cierra un PR apuntando a main
 
 jobs:
   tag-and-docker:
@@ -58,4 +58,3 @@ jobs:
         run: |
           docker build -t mi-app-flask:$new_tag .
           docker images
-
