@@ -1,0 +1,61 @@
+name: CI/CD Pipeline Automático
+
+# Cuándo se ejecuta el pipeline
+on:
+  push:
+    branches:
+      - master      # Se ejecuta cuando se hace push a master
+  pull_request:
+    types: [closed]
+    branches:
+      - master      # Se ejecuta cuando se cierra un PR apuntando a master
+
+jobs:
+  tag-and-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Traer el código del repositorio
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Obtener el último tag
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+
+      # 3️⃣ Calcular el nuevo tag
+      - name: Calculate new tag
+        id: new_tag
+        run: |
+          if [ -z "$latest_tag" ]; then
+            new_tag="0.0.1"
+          else
+            IFS='.' read -r major minor patch <<< "${latest_tag//v/}"
+            patch=$((patch+1))
+            new_tag="$major.$minor.$patch"
+          fi
+          echo "New tag: $new_tag"
+          echo "new_tag=$new_tag" >> $GITHUB_ENV
+
+      # 4️⃣ Crear y subir el tag a GitHub
+      - name: Create tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag $new_tag
+          git push origin $new_tag
+
+      # 5️⃣ Print de prueba: imprimir la hora cada minuto 3 veces
+      - name: Print current time (demo)
+        run: |
+          for i in {1..3}; do date; sleep 60; done
+
+      # 6️⃣ (Opcional) Build de Docker
+      - name: Build Docker image
+        run: |
+          docker build -t mi-app-flask:$new_tag .
+          docker images
+
