@@ -54,15 +54,25 @@ jobs:
           echo "Tag generado automáticamente: ${{ steps.tag.outputs.new_tag }}"
           docker images
 
-      # 7️⃣ Tag Docker image con el tag generado
+      # 7️⃣ Tag Docker image con fallback seguro
       - name: Tag Docker image
         run: |
-          docker tag mi-app-flask:latest ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:${{ steps.tag.outputs.new_tag }}
+          TAG=${{ steps.tag.outputs.new_tag }}
+          if [ -z "$TAG" ]; then
+            echo "No se generó tag automático, uso 'v0.0.1' como fallback"
+            TAG="v0.0.1"
+          fi
+          docker tag mi-app-flask:latest ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:$TAG
+          echo "Imagen taggeada: ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:$TAG"
 
-      # 8️⃣ Push Docker image a Docker Hub
+      # 8️⃣ Push Docker image a Docker Hub con fallback
       - name: Push Docker image
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:${{ steps.tag.outputs.new_tag }}
+          TAG=${{ steps.tag.outputs.new_tag }}
+          if [ -z "$TAG" ]; then
+            TAG="v0.0.1"
+          fi
+          docker push ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:$TAG
 
       # 9️⃣ Mostrar info segura del GITHUB_TOKEN (longitud + hash)
       - name: Mostrar info segura del GITHUB_TOKEN
