@@ -14,7 +14,7 @@ on:
 
 jobs:
   tag-and-docker:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
       # 1️⃣ Traer todo el código y el historial completo
@@ -30,13 +30,15 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3️⃣ Demo: imprimir la hora 3 veces
+      # 3️⃣ Demo: imprimir la hora 3 veces (PowerShell)
       - name: Print current time (demo)
+        shell: pwsh
         run: |
-          for i in {1..3}; do date; sleep 60; done
+          for ($i=1; $i -le 3; $i++) { Get-Date; Start-Sleep -Seconds 60 }
 
       # 4️⃣ Build Docker
       - name: Build Docker image
+        shell: pwsh
         run: |
           docker build -t mi-app-flask:latest .
           docker images
@@ -50,33 +52,45 @@ jobs:
 
       # 6️⃣ Debug: verificar tag generado y lista de imágenes
       - name: Debug Docker Tag & Images
+        shell: pwsh
         run: |
-          echo "Tag generado automáticamente: ${{ steps.tag.outputs.new_tag }}"
+          Write-Host "Tag generado automáticamente: $(${{ steps.tag.outputs.new_tag }})"
           docker images
 
-      # 7️⃣ Tag Docker image con fallback seguro y sin bloquear el workflow
+      # 7️⃣ Tag Docker image con fallback seguro
       - name: Tag Docker image
-        continue-on-error: true   # ⚡ ignorar errores aquí
+        shell: pwsh
+        continue-on-error: true
         run: |
-          TAG=${{ steps.tag.outputs.new_tag }}
-          if [ -z "$TAG" ]; then
-            echo "No se generó tag automático, uso 'v0.0.1' como fallback"
-            TAG="v0.0.1"
-          fi
-          docker tag mi-app-flask:latest ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:$TAG
-          echo "Imagen taggeada: ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:$TAG"
+          $TAG = '${{ steps.tag.outputs.new_tag }}'
+          if ([string]::IsNullOrEmpty($TAG)) {
+            Write-Host "No se generó tag automático, uso 'v0.0.1' como fallback"
+            $TAG = "v0.0.1"
+          }
+          docker tag mi-app-flask:latest $env:DOCKER_USERNAME/mi-app-flask:$TAG
+          Write-Host "Imagen taggeada: $env:DOCKER_USERNAME/mi-app-flask:$TAG"
 
-      # 8️⃣ Push Docker image a Docker Hub con fallback y sin bloquear
+      # 8️⃣ Push Docker image a Docker Hub
       - name: Push Docker image
-        continue-on-error: true   # ⚡ ignorar errores aquí
+        shell: pwsh
+        continue-on-error: true
         run: |
-          TAG=${{ steps.tag.outputs.new_tag }}
-          if [ -z "$TAG" ]; then
-            TAG="v0.0.1"
-          fi
-          docker push ${{ secrets.DOCKER_USERNAME }}/mi-app-flask:$TAG
+          $TAG = '${{ steps.tag.outputs.new_tag }}'
+          if ([string]::IsNullOrEmpty($TAG)) { $TAG = "v0.0.1" }
+          docker push $env:DOCKER_USERNAME/mi-app-flask:$TAG
 
-      # 9️⃣ Mostrar inf
+      # 9️⃣ Mostrar info segura del GITHUB_TOKEN (longitud + hash)
+      - name: Mostrar info segura del GITHUB_TOKEN
+        shell: pwsh
+        run: |
+          Write-Host "Intentando mostrar información del token (de forma segura)..."
+          $token = '${{ secrets.GITHUB_TOKEN }}'
+          Write-Host ("Longitud del token: " + $token.Length)
+          $sha256 = [System.BitConverter]::ToString((New-Object System.Security.Cryptography.SHA256Managed).ComputeHash([System.Text.Encoding]::UTF8.GetBytes($token))).Replace("-", "").ToLower()
+          Write-Host ("SHA256: " + $sha256)
+          Write-Host ("Primeros 4 chars (mask): " + $token.Substring(0,4) + "****")
+          Write-Host ("Últimos 4 chars (mask): ****" + $token.Substring($token.Length-4,4))
+
 
 
 
